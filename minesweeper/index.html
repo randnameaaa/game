@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>经典扫雷 - 专业版</title>
+    <title>经典扫雷 - 完美操作版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -15,113 +15,64 @@
             min-height: 100vh;
             margin: 0;
             user-select: none;
-            -webkit-user-select: none; /* 禁止选中文本 */
+            -webkit-user-select: none;
         }
 
-        /* 禁止右键菜单 */
         body { -webkit-context-menu: none; }
 
         .inset { border: 2px solid; border-color: #808080 #fff #fff #808080; }
         .outset { border: 2px solid; border-color: #fff #808080 #808080 #fff; }
 
-        .game-window {
-            background: #c0c0c0;
-            padding: 6px;
-            display: inline-block;
-        }
+        .game-window { background: #c0c0c0; padding: 6px; display: inline-block; }
 
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 6px;
-            margin-bottom: 6px;
-            background: #c0c0c0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 6px; margin-bottom: 6px; background: #c0c0c0;
         }
 
         .counter {
-            background: #000;
-            color: #f00;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 26px;
-            line-height: 26px;
-            width: 50px;
-            text-align: center;
-            font-weight: bold;
+            background: #000; color: #f00; font-family: 'Courier New', Courier, monospace;
+            font-size: 26px; line-height: 26px; width: 50px; text-align: center; font-weight: bold;
         }
 
         #face-btn {
-            width: 26px;
-            height: 26px;
-            font-size: 18px;
-            line-height: 22px;
-            text-align: center;
-            cursor: pointer;
-            background: #c0c0c0;
-            outline: none;
-            padding: 0;
-            border: 2px solid; 
-            border-color: #fff #808080 #808080 #fff;
+            width: 26px; height: 26px; font-size: 18px; line-height: 22px; text-align: center;
+            cursor: pointer; background: #c0c0c0; outline: none; padding: 0;
+            border: 2px solid; border-color: #fff #808080 #808080 #fff;
         }
-        #face-btn:active { 
-            border-width: 2px; border-style: solid; border-color: #808080 #fff #fff #808080; 
-            transform: translateY(1px); 
-        }
+        #face-btn:active { border-color: #808080 #fff #fff #808080; transform: translateY(1px); }
 
-        #grid {
-            display: grid;
-            background: #808080;
-            gap: 0; 
-        }
+        #grid { display: grid; background: #808080; gap: 0; }
 
         .cell {
-            width: 24px;
-            height: 24px;
-            line-height: 22px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 16px;
-            font-family: 'Verdana', sans-serif;
-            cursor: default;
-            box-sizing: border-box;
+            width: 24px; height: 24px; line-height: 22px; text-align: center;
+            font-weight: bold; font-size: 16px; font-family: 'Verdana', sans-serif;
+            cursor: default; box-sizing: border-box;
         }
 
-        /* 初始凸起状态 */
         .cell.closed {
             background: #c0c0c0;
-            border-top: 2px solid #fff;
-            border-left: 2px solid #fff;
-            border-right: 2px solid #808080;
-            border-bottom: 2px solid #808080;
+            border-top: 2px solid #fff; border-left: 2px solid #fff;
+            border-right: 2px solid #808080; border-bottom: 2px solid #808080;
         }
         
-        /* 被按下的状态 (用于左右键同按时的视觉反馈) */
+        /* 左右键同按时的高亮效果 */
         .cell.pressed {
-            border: none;
-            border-left: 1px solid #808080;
-            border-top: 1px solid #808080;
+            border: none; border-left: 1px solid #808080; border-top: 1px solid #808080;
             background: #c0c0c0;
         }
 
-        /* 翻开后的状态 */
         .cell.revealed {
-            background: #c0c0c0;
-            border: 1px dotted #808080;
-            border-top: none; border-left: none;
+            background: #c0c0c0; border: 1px dotted #808080; border-top: none; border-left: none;
         }
 
         .cell.mine { background: #ff0000; border: 1px solid #808080; }
         .cell.flagged { color: #ff0000; }
         .cell.mistake { background: #ffcdcd; color: #ff0000; font-weight: normal; }
 
-        .c-1 { color: #0000ff; }
-        .c-2 { color: #008000; }
-        .c-3 { color: #ff0000; }
-        .c-4 { color: #000080; }
-        .c-5 { color: #800000; }
-        .c-6 { color: #008080; }
-        .c-7 { color: #000000; }
-        .c-8 { color: #808080; }
+        .c-1 { color: #0000ff; } .c-2 { color: #008000; } .c-3 { color: #ff0000; }
+        .c-4 { color: #000080; } .c-5 { color: #800000; } .c-6 { color: #008080; }
+        .c-7 { color: #000000; } .c-8 { color: #808080; }
 
         .menu { margin-bottom: 15px; }
         .menu button { margin: 0 5px; padding: 5px 10px; cursor: pointer; border: 1px solid #888; background: #eee;}
@@ -129,7 +80,7 @@
         a.back { display: block; margin-top: 15px; color: #555; text-decoration: none; font-size: 12px; }
     </style>
 </head>
-<body oncontextmenu="return false;"> <!-- 全局禁止右键菜单 -->
+<body oncontextmenu="return false;"> 
 
     <div class="menu">
         <button onclick="setDifficulty('easy')" id="btn-easy">初级</button>
@@ -143,10 +94,7 @@
             <button id="face-btn" onclick="initGame()">🙂</button>
             <div class="counter inset" id="timer">000</div>
         </div>
-
-        <div class="inset">
-            <div id="grid"></div>
-        </div>
+        <div class="inset"><div id="grid"></div></div>
     </div>
 
     <a href="/" class="back">← 返回菜单</a>
@@ -167,10 +115,8 @@
         let time = 0;
         let firstClick = true;
         
-        // 鼠标状态追踪
         let isLeftDown = false;
         let isRightDown = false;
-        let currentHoverIdx = -1;
 
         const faceBtn = document.getElementById('face-btn');
         const gridEl = document.getElementById('grid');
@@ -209,7 +155,6 @@
                 cell.className = 'cell closed';
                 cell.id = `c-${i}`;
                 
-                // 绑定鼠标事件
                 cell.addEventListener('mousedown', (e) => handleMouseDown(e, i));
                 cell.addEventListener('mouseup', (e) => handleMouseUp(e, i));
                 cell.addEventListener('mouseenter', (e) => handleMouseEnter(e, i));
@@ -219,8 +164,6 @@
             }
         }
 
-        // --- 鼠标逻辑核心 ---
-
         function handleMouseDown(e, idx) {
             if(gameOver) return;
             if(e.button === 0) isLeftDown = true;
@@ -228,40 +171,31 @@
 
             faceBtn.innerText = "😮";
             
-            // 左右键同按逻辑
             if(isLeftDown && isRightDown) {
+                // 双键按下：高亮周围，且**不执行**插旗
                 highlightNeighbors(idx);
             } else if(isLeftDown) {
-                // 单左键按下效果
+                // 仅左键：高亮自己
                 if(!grid[idx].revealed && !grid[idx].flagged) {
                     document.getElementById(`c-${idx}`).classList.add('pressed');
                 }
             } else if(isRightDown) {
-                // 单右键按下：如果是插旗操作，down的时候就插旗体验更好，还是up的时候？
-                // Windows经典是按下即标记
+                // 仅右键：**重要修复** 只有当左键没按时，才插旗
                 if(!isLeftDown) toggleFlag(idx); 
             }
         }
 
         function handleMouseEnter(e, idx) {
-            currentHoverIdx = idx;
             if(gameOver) return;
-            if(isLeftDown && isRightDown) {
-                highlightNeighbors(idx);
-            } else if(isLeftDown) {
-                if(!grid[idx].revealed && !grid[idx].flagged) {
-                    document.getElementById(`c-${idx}`).classList.add('pressed');
-                }
+            if(isLeftDown && isRightDown) highlightNeighbors(idx);
+            else if(isLeftDown) {
+                if(!grid[idx].revealed && !grid[idx].flagged) document.getElementById(`c-${idx}`).classList.add('pressed');
             }
         }
 
         function handleMouseLeave(e, idx) {
-            // 离开格子时，清除该格子及其周围的高亮
             if(gameOver) return;
-            const el = document.getElementById(`c-${idx}`);
-            if(el) el.classList.remove('pressed');
-            
-            // 清除周围高亮
+            document.getElementById(`c-${idx}`).classList.remove('pressed');
             getNeighbors(idx).forEach(n => {
                 const nEl = document.getElementById(`c-${n}`);
                 if(nEl && !grid[n].revealed) nEl.classList.remove('pressed');
@@ -271,49 +205,32 @@
         function handleMouseUp(e, idx) {
             if(gameOver) return;
             
-            // 左右键同松开逻辑 (Chording)
-            // 注意：通常只要两个键都按下了，松开任意一个键都会触发Chording
+            // 只要左右键同时处于按下状态（即使现在松开了一个），都视为双键操作结束
             if(isLeftDown && isRightDown) {
-                // 此时执行双键扫雷
                 chordOpen(idx);
-                // 清除高亮
                 unhighlightAll();
             } else if (isLeftDown && e.button === 0) {
-                // 普通左键点击
-                if(!isRightDown) { // 确保不是双键操作残留
-                    handleClick(idx);
-                }
+                // 只有纯左键释放，且没有右键干扰时，才算普通点击
+                if(!isRightDown) handleClick(idx);
             }
 
             if(e.button === 0) isLeftDown = false;
             if(e.button === 2) isRightDown = false;
 
-            if(!isLeftDown && !isRightDown) {
-                faceBtn.innerText = "🙂";
-            }
+            if(!isLeftDown && !isRightDown) faceBtn.innerText = "🙂";
         }
         
-        // 全局mouseup防止鼠标移出格子后松开卡死状态
         document.addEventListener('mouseup', () => {
-             // 稍微延迟一点重置，确保格子的mouseup先执行
-             setTimeout(() => {
-                 if(!isLeftDown && !isRightDown) faceBtn.innerText = "🙂";
-             }, 10);
+             setTimeout(() => { if(!isLeftDown && !isRightDown) faceBtn.innerText = "🙂"; }, 10);
         });
-
-        // --- 游戏逻辑 ---
 
         function highlightNeighbors(idx) {
             const neighbors = getNeighbors(idx);
-            // 高亮周围未翻开且未插旗的格子
             neighbors.forEach(n => {
                 if(!grid[n].revealed && !grid[n].flagged) {
                     document.getElementById(`c-${n}`).classList.add('pressed');
                 }
             });
-            // 同时也高亮自己（如果未翻开）
-            /* 经典扫雷中，如果点的是数字，自己不会凹陷；如果点的是未知区域，自己会凹陷。
-               这里为了简化，主要处理数字周围的高亮 */
         }
 
         function unhighlightAll() {
@@ -341,14 +258,12 @@
 
         function chordOpen(idx) {
             const cell = grid[idx];
-            // 必须是已翻开的数字格
             if(!cell.revealed || cell.count === 0) return;
 
             const neighbors = getNeighbors(idx);
             const flagCount = neighbors.filter(n => grid[n].flagged).length;
 
             if(flagCount === cell.count) {
-                // 插旗数量正确（或认为正确），翻开周围
                 let hitMine = false;
                 neighbors.forEach(n => {
                     if(!grid[n].revealed && !grid[n].flagged) {
@@ -360,8 +275,7 @@
                         }
                     }
                 });
-                if(hitMine) return; 
-                checkWin();
+                if(!hitMine) checkWin();
             }
         }
 
@@ -390,7 +304,7 @@
             
             const el = document.getElementById(`c-${idx}`);
             el.className = 'cell revealed';
-            el.classList.remove('pressed'); // 移除可能的按下状态
+            el.classList.remove('pressed'); 
             
             if(grid[idx].count > 0) {
                 el.classList.add(`c-${grid[idx].count}`);
@@ -411,17 +325,14 @@
                     minesPlaced++;
                 }
             }
-
             for(let i=0; i<total; i++) {
                 if(!grid[i].isMine) {
                     let neighbors = getNeighbors(i);
                     grid[i].count = neighbors.filter(n => grid[n].isMine).length;
                 }
             }
-
             timerInterval = setInterval(() => {
-                time++;
-                if(time > 999) time = 999;
+                time++; if(time > 999) time = 999;
                 timerEl.innerText = time.toString().padStart(3, '0');
             }, 1000);
         }
@@ -449,13 +360,11 @@
             if(isWin) {
                 faceBtn.innerText = "😎";
                 minesLeftEl.innerText = "000";
-                // 胜利逻辑：将所有雷标记为旗子 (修复你的bug体验)
                 grid.forEach(c => {
                     if(c.isMine && !c.flagged) {
                         const el = document.getElementById(`c-${c.index}`);
                         el.innerText = '🚩';
                         el.classList.add('flagged');
-                        // 也不用更新flags计数器了，直接显示000最好看
                     }
                 });
             } else {
@@ -481,10 +390,7 @@
         function checkWin() {
             if(gameOver) return;
             const total = config.rows * config.cols;
-            // 只要非雷区全部点开，即为胜利（无论雷是否全部插旗）
-            if(revealed === total - config.mines) {
-                triggerGameOver(true);
-            }
+            if(revealed === total - config.mines) triggerGameOver(true);
         }
 
         function updateMinesCounter() {
@@ -494,7 +400,6 @@
         }
 
         setDifficulty('easy');
-
     </script>
 </body>
 </html>
