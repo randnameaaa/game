@@ -1,110 +1,349 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>简易扫雷</title>
+    <title>网页版扫雷 - 多难度支持</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: sans-serif; text-align: center; background: #eee; padding-top: 20px;}
-        #grid { display: grid; grid-template-columns: repeat(10, 30px); gap: 2px; margin: 20px auto; width: 320px; }
-        .cell { width: 30px; height: 30px; background: #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; user-select: none;}
-        .cell.revealed { background: #fff; }
-        .cell.mine { background: #f00; }
-        a { display: block; margin-top: 20px; color: #333; text-decoration: none; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            text-align: center;
+            background: #f0f0f0;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            user-select: none; /* 防止双击选中文本 */
+        }
+
+        h1 { margin: 10px 0; font-size: 24px; }
+
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        button:hover { background: #e0e0e0; }
+        button.active { background: #0070f3; color: white; border-color: #0070f3; }
+
+        .status-bar {
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 18px;
+            display: flex;
+            gap: 20px;
+        }
+
+        #game-container {
+            background: #bbbbbb;
+            padding: 10px;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: inline-block;
+        }
+
+        #grid {
+            display: grid;
+            gap: 1px;
+            background: #888; /* 格子之间的线颜色 */
+            border: 1px solid #888;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            background: #c6c6c6; /* 未点开的颜色 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 18px;
+            /* 3D 效果边框 */
+            border-top: 2px solid #fff;
+            border-left: 2px solid #fff;
+            border-right: 2px solid #7b7b7b;
+            border-bottom: 2px solid #7b7b7b;
+            box-sizing: border-box; 
+        }
+
+        .cell:active {
+            border: 1px solid #7b7b7b; /* 点击时的凹陷感 */
+        }
+
+        .cell.revealed {
+            background: #e0e0e0; /* 点开后的背景 */
+            border: none;
+            border: 1px solid #d0d0d0;
+        }
+
+        .cell.mine { background: #ff4d4d; border: none; }
+        .cell.flagged { color: #d00; }
+
+        /* 数字颜色 */
+        .c-1 { color: blue; }
+        .c-2 { color: green; }
+        .c-3 { color: red; }
+        .c-4 { color: darkblue; }
+        .c-5 { color: brown; }
+        .c-6 { color: teal; }
+        .c-7 { color: black; }
+        .c-8 { color: gray; }
+
+        a.back-link {
+            margin-top: 30px;
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+            border-bottom: 1px dashed #999;
+        }
     </style>
 </head>
 <body>
-    <h2>💣 扫雷</h2>
-    <div id="status">点击方块开始</div>
-    <div id="grid"></div>
-    <button onclick="initGame()">重置</button>
-    <a href="/">← 返回菜单</a>
+
+    <h1>💣 扫雷挑战</h1>
+
+    <div class="controls">
+        <button onclick="startGame('easy')" id="btn-easy">简单 (9x9)</button>
+        <button onclick="startGame('medium')" id="btn-medium">中等 (12x12)</button>
+        <button onclick="startGame('hard')" id="btn-hard">困难 (16x16)</button>
+    </div>
+
+    <div class="status-bar">
+        <span>🚩 剩余雷数: <span id="mines-count">0</span></span>
+        <span id="game-status"></span>
+    </div>
+
+    <div id="game-container">
+        <div id="grid"></div>
+    </div>
+
+    <a href="/" class="back-link">← 返回游戏菜单</a>
 
     <script>
-        const size = 10;
-        const minesCount = 10;
+        // 配置不同难度的参数
+        const levels = {
+            easy: { rows: 9, cols: 9, mines: 10 },
+            medium: { rows: 12, cols: 12, mines: 25 },
+            hard: { rows: 16, cols: 16, mines: 50 }
+        };
+
+        let currentConfig = {};
         let grid = [];
         let gameOver = false;
+        let flagsUsed = 0;
+        let revealedCount = 0;
 
-        function initGame() {
+        // 初始化游戏
+        function startGame(level) {
+            currentConfig = levels[level];
+            
+            // 更新按钮样式
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${level}`).classList.add('active');
+
+            // 重置状态
+            gameOver = false;
+            flagsUsed = 0;
+            revealedCount = 0;
+            grid = [];
+            
+            updateStatus();
+
+            // 设置网格样式
             const gridEl = document.getElementById('grid');
             gridEl.innerHTML = '';
-            grid = [];
-            gameOver = false;
-            document.getElementById('status').innerText = '进行中...';
+            gridEl.style.gridTemplateColumns = `repeat(${currentConfig.cols}, 30px)`; // 动态设置列数
 
-            // Create grid data
-            for(let i=0; i<size*size; i++) {
-                grid.push({ index: i, isMine: false, revealed: false, count: 0 });
-                let cell = document.createElement('div');
+            // 生成网格数据
+            for (let i = 0; i < currentConfig.rows * currentConfig.cols; i++) {
+                grid.push({
+                    index: i,
+                    isMine: false,
+                    isRevealed: false,
+                    isFlagged: false,
+                    neighborMines: 0
+                });
+
+                const cell = document.createElement('div');
                 cell.className = 'cell';
-                cell.id = `c-${i}`;
-                cell.onclick = () => clickCell(i);
+                cell.id = `cell-${i}`;
+                
+                // 左键点击
+                cell.onclick = () => handleClick(i);
+                
+                // 右键点击 (修复的核心代码)
+                cell.oncontextmenu = (e) => {
+                    e.preventDefault(); // 阻止浏览器默认菜单
+                    handleRightClick(i);
+                    return false;
+                };
+
                 gridEl.appendChild(cell);
             }
 
-            // Place mines
+            // 布雷
             let minesPlaced = 0;
-            while(minesPlaced < minesCount) {
-                let idx = Math.floor(Math.random() * (size*size));
-                if(!grid[idx].isMine) { grid[idx].isMine = true; minesPlaced++; }
+            while (minesPlaced < currentConfig.mines) {
+                let idx = Math.floor(Math.random() * grid.length);
+                if (!grid[idx].isMine) {
+                    grid[idx].isMine = true;
+                    minesPlaced++;
+                }
             }
 
-            // Calculate numbers
-            for(let i=0; i<grid.length; i++) {
-                if(grid[i].isMine) continue;
-                let neighbors = getNeighbors(i);
-                grid[i].count = neighbors.filter(n => grid[n].isMine).length;
+            // 计算周围雷数
+            for (let i = 0; i < grid.length; i++) {
+                if (!grid[i].isMine) {
+                    grid[i].neighborMines = countMines(i);
+                }
             }
         }
 
+        // 计算某个格子周围的雷数
+        function countMines(idx) {
+            const neighbors = getNeighbors(idx);
+            return neighbors.filter(n => grid[n].isMine).length;
+        }
+
+        // 获取周围格子的索引
         function getNeighbors(idx) {
-            const row = Math.floor(idx / size);
-            const col = idx % size;
-            let neighbors = [];
-            for(let r = row-1; r <= row+1; r++) {
-                for(let c = col-1; c <= col+1; c++) {
-                    if(r >= 0 && r < size && c >= 0 && c < size) {
-                        let nIdx = r * size + c;
-                        if(nIdx !== idx) neighbors.push(nIdx);
+            const rows = currentConfig.rows;
+            const cols = currentConfig.cols;
+            const r = Math.floor(idx / cols);
+            const c = idx % cols;
+            const neighbors = [];
+
+            for (let i = r - 1; i <= r + 1; i++) {
+                for (let j = c - 1; j <= c + 1; j++) {
+                    if (i >= 0 && i < rows && j >= 0 && j < cols) {
+                        const neighborIdx = i * cols + j;
+                        if (neighborIdx !== idx) neighbors.push(neighborIdx);
                     }
                 }
             }
             return neighbors;
         }
 
-        function clickCell(idx) {
-            if(gameOver || grid[idx].revealed) return;
-            grid[idx].revealed = true;
-            let el = document.getElementById(`c-${idx}`);
+        // 处理左键点击
+        function handleClick(idx) {
+            if (gameOver || grid[idx].isFlagged || grid[idx].isRevealed) return;
+
+            const cell = grid[idx];
+            cell.isRevealed = true;
+            const el = document.getElementById(`cell-${idx}`);
             el.classList.add('revealed');
 
-            if(grid[idx].isMine) {
+            if (cell.isMine) {
+                // 踩雷了
                 el.classList.add('mine');
-                el.innerText = '💣';
-                document.getElementById('status').innerText = '游戏结束！';
-                gameOver = true;
-                revealAll();
+                el.innerHTML = '💣';
+                endGame(false);
             } else {
-                if(grid[idx].count > 0) el.innerText = grid[idx].count;
-                else {
-                    // Flood fill
-                    let neighbors = getNeighbors(idx);
-                    neighbors.forEach(n => clickCell(n));
+                revealedCount++;
+                if (cell.neighborMines > 0) {
+                    el.innerText = cell.neighborMines;
+                    el.classList.add(`c-${cell.neighborMines}`);
+                } else {
+                    // 空白格，递归打开周围
+                    const neighbors = getNeighbors(idx);
+                    neighbors.forEach(n => handleClick(n));
                 }
+                checkWin();
             }
         }
 
-        function revealAll() {
-            grid.forEach(c => {
-                if(c.isMine) {
-                    let el = document.getElementById(`c-${c.index}`);
-                    el.classList.add('revealed', 'mine');
-                    el.innerText = '💣';
-                }
-            });
+        // 处理右键点击 (插旗)
+        function handleRightClick(idx) {
+            if (gameOver || grid[idx].isRevealed) return;
+
+            const cell = grid[idx];
+            const el = document.getElementById(`cell-${idx}`);
+
+            if (cell.isFlagged) {
+                cell.isFlagged = false;
+                el.classList.remove('flagged');
+                el.innerText = '';
+                flagsUsed--;
+            } else {
+                cell.isFlagged = true;
+                el.classList.add('flagged');
+                el.innerText = '🚩';
+                flagsUsed++;
+            }
+            updateStatus();
         }
 
-        initGame();
+        function updateStatus() {
+            document.getElementById('mines-count').innerText = currentConfig.mines - flagsUsed;
+            document.getElementById('game-status').innerText = gameOver ? (checkWinCondition() ? "🎉 胜利！" : "💥 失败！") : "😊 进行中";
+        }
+
+        function checkWin() {
+            // 胜利条件：所有非雷格子都被点开
+            const totalCells = currentConfig.rows * currentConfig.cols;
+            if (revealedCount === totalCells - currentConfig.mines) {
+                endGame(true);
+            }
+        }
+        
+        function checkWinCondition() {
+             const totalCells = currentConfig.rows * currentConfig.cols;
+             return revealedCount === totalCells - currentConfig.mines;
+        }
+
+        function endGame(isWin) {
+            gameOver = true;
+            updateStatus();
+            if (isWin) {
+                document.getElementById('game-status').innerText = "🎉 恭喜通关！";
+                // 胜利时自动把剩下的雷插上旗
+                grid.forEach(cell => {
+                    if(cell.isMine && !cell.isFlagged) {
+                        const el = document.getElementById(`cell-${cell.index}`);
+                        el.innerText = '🚩';
+                        el.classList.add('flagged');
+                    }
+                });
+            } else {
+                document.getElementById('game-status').innerText = "💥 游戏结束";
+                // 失败时显示所有雷
+                grid.forEach(cell => {
+                    if (cell.isMine) {
+                        const el = document.getElementById(`cell-${cell.index}`);
+                        if (!cell.isFlagged) {
+                            el.classList.add('revealed', 'mine');
+                            el.innerText = '💣';
+                        }
+                    } else if (cell.isFlagged) {
+                        // 标错的雷
+                        const el = document.getElementById(`cell-${cell.index}`);
+                        el.classList.add('revealed');
+                        el.style.backgroundColor = '#ffcccc';
+                        el.innerText = '❌';
+                    }
+                });
+            }
+        }
+
+        // 默认开始简单难度
+        startGame('easy');
     </script>
 </body>
 </html>
