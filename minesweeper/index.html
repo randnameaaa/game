@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>简易扫雷</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #eee; padding-top: 20px;}
+        #grid { display: grid; grid-template-columns: repeat(10, 30px); gap: 2px; margin: 20px auto; width: 320px; }
+        .cell { width: 30px; height: 30px; background: #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; user-select: none;}
+        .cell.revealed { background: #fff; }
+        .cell.mine { background: #f00; }
+        a { display: block; margin-top: 20px; color: #333; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <h2>💣 扫雷</h2>
+    <div id="status">点击方块开始</div>
+    <div id="grid"></div>
+    <button onclick="initGame()">重置</button>
+    <a href="/">← 返回菜单</a>
+
+    <script>
+        const size = 10;
+        const minesCount = 10;
+        let grid = [];
+        let gameOver = false;
+
+        function initGame() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            grid = [];
+            gameOver = false;
+            document.getElementById('status').innerText = '进行中...';
+
+            // Create grid data
+            for(let i=0; i<size*size; i++) {
+                grid.push({ index: i, isMine: false, revealed: false, count: 0 });
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.id = `c-${i}`;
+                cell.onclick = () => clickCell(i);
+                gridEl.appendChild(cell);
+            }
+
+            // Place mines
+            let minesPlaced = 0;
+            while(minesPlaced < minesCount) {
+                let idx = Math.floor(Math.random() * (size*size));
+                if(!grid[idx].isMine) { grid[idx].isMine = true; minesPlaced++; }
+            }
+
+            // Calculate numbers
+            for(let i=0; i<grid.length; i++) {
+                if(grid[i].isMine) continue;
+                let neighbors = getNeighbors(i);
+                grid[i].count = neighbors.filter(n => grid[n].isMine).length;
+            }
+        }
+
+        function getNeighbors(idx) {
+            const row = Math.floor(idx / size);
+            const col = idx % size;
+            let neighbors = [];
+            for(let r = row-1; r <= row+1; r++) {
+                for(let c = col-1; c <= col+1; c++) {
+                    if(r >= 0 && r < size && c >= 0 && c < size) {
+                        let nIdx = r * size + c;
+                        if(nIdx !== idx) neighbors.push(nIdx);
+                    }
+                }
+            }
+            return neighbors;
+        }
+
+        function clickCell(idx) {
+            if(gameOver || grid[idx].revealed) return;
+            grid[idx].revealed = true;
+            let el = document.getElementById(`c-${idx}`);
+            el.classList.add('revealed');
+
+            if(grid[idx].isMine) {
+                el.classList.add('mine');
+                el.innerText = '💣';
+                document.getElementById('status').innerText = '游戏结束！';
+                gameOver = true;
+                revealAll();
+            } else {
+                if(grid[idx].count > 0) el.innerText = grid[idx].count;
+                else {
+                    // Flood fill
+                    let neighbors = getNeighbors(idx);
+                    neighbors.forEach(n => clickCell(n));
+                }
+            }
+        }
+
+        function revealAll() {
+            grid.forEach(c => {
+                if(c.isMine) {
+                    let el = document.getElementById(`c-${c.index}`);
+                    el.classList.add('revealed', 'mine');
+                    el.innerText = '💣';
+                }
+            });
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
