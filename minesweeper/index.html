@@ -2,23 +2,25 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>经典扫雷 - 极速双击版</title>
+    <title>经典扫雷 - 专业版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #c0c0c0; /* 经典Win95灰 */
+            background-color: #c0c0c0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            user-select: none; /* 禁止选中文本 */
-            -webkit-user-select: none;
+            user-select: none;
+            -webkit-user-select: none; /* 禁止选中文本 */
         }
 
-        /* 3D 边框效果工具类 */
+        /* 禁止右键菜单 */
+        body { -webkit-context-menu: none; }
+
         .inset { border: 2px solid; border-color: #808080 #fff #fff #808080; }
         .outset { border: 2px solid; border-color: #fff #808080 #808080 #fff; }
 
@@ -28,7 +30,6 @@
             display: inline-block;
         }
 
-        /* 顶部栏：包含计数器和笑脸 */
         .header {
             display: flex;
             justify-content: space-between;
@@ -50,10 +51,10 @@
         }
 
         #face-btn {
-            width: 36px;
-            height: 36px;
-            font-size: 20px;
-            line-height: 32px;
+            width: 26px;
+            height: 26px;
+            font-size: 18px;
+            line-height: 22px;
             text-align: center;
             cursor: pointer;
             background: #c0c0c0;
@@ -63,16 +64,13 @@
             border-color: #fff #808080 #808080 #fff;
         }
         #face-btn:active { 
-            border-width: 2px; 
-            border-style: solid; 
-            border-color: #808080 #fff #fff #808080; 
+            border-width: 2px; border-style: solid; border-color: #808080 #fff #fff #808080; 
             transform: translateY(1px); 
         }
 
-        /* 游戏区域 */
         #grid {
             display: grid;
-            background: #808080; /* 格子之间的线 */
+            background: #808080;
             gap: 0; 
         }
 
@@ -88,7 +86,7 @@
             box-sizing: border-box;
         }
 
-        /* 未点开的状态 (凸起) */
+        /* 初始凸起状态 */
         .cell.closed {
             background: #c0c0c0;
             border-top: 2px solid #fff;
@@ -97,19 +95,25 @@
             border-bottom: 2px solid #808080;
         }
         
-        /* 点开后的状态 (平整/凹陷) */
+        /* 被按下的状态 (用于左右键同按时的视觉反馈) */
+        .cell.pressed {
+            border: none;
+            border-left: 1px solid #808080;
+            border-top: 1px solid #808080;
+            background: #c0c0c0;
+        }
+
+        /* 翻开后的状态 */
         .cell.revealed {
             background: #c0c0c0;
-            border: 1px dotted #808080; /* 淡淡的虚线边界 */
-            border-top: none; 
-            border-left: none;
+            border: 1px dotted #808080;
+            border-top: none; border-left: none;
         }
 
         .cell.mine { background: #ff0000; border: 1px solid #808080; }
         .cell.flagged { color: #ff0000; }
         .cell.mistake { background: #ffcdcd; color: #ff0000; font-weight: normal; }
 
-        /* 数字颜色 */
         .c-1 { color: #0000ff; }
         .c-2 { color: #008000; }
         .c-3 { color: #ff0000; }
@@ -119,26 +123,19 @@
         .c-7 { color: #000000; }
         .c-8 { color: #808080; }
 
-        /* 难度选择菜单 */
         .menu { margin-bottom: 15px; }
         .menu button { margin: 0 5px; padding: 5px 10px; cursor: pointer; border: 1px solid #888; background: #eee;}
         .menu button.active { font-weight: bold; background: #bbb; border: 1px inset #888; }
-
         a.back { display: block; margin-top: 15px; color: #555; text-decoration: none; font-size: 12px; }
-        
-        /* 提示文字 */
-        .hint { font-size: 12px; color: #666; margin-bottom: 5px; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;"> <!-- 全局禁止右键菜单 -->
 
     <div class="menu">
         <button onclick="setDifficulty('easy')" id="btn-easy">初级</button>
         <button onclick="setDifficulty('medium')" id="btn-medium">中级</button>
         <button onclick="setDifficulty('hard')" id="btn-hard">高级</button>
     </div>
-
-    <div class="hint">💡 提示：双击数字可快速翻开周围格子</div>
 
     <div class="game-window outset">
         <div class="header inset">
@@ -169,6 +166,11 @@
         let timerInterval;
         let time = 0;
         let firstClick = true;
+        
+        // 鼠标状态追踪
+        let isLeftDown = false;
+        let isRightDown = false;
+        let currentHoverIdx = -1;
 
         const faceBtn = document.getElementById('face-btn');
         const gridEl = document.getElementById('grid');
@@ -189,6 +191,8 @@
             time = 0;
             firstClick = true;
             grid = [];
+            isLeftDown = false;
+            isRightDown = false;
             
             clearInterval(timerInterval);
             timerEl.innerText = "000";
@@ -200,34 +204,200 @@
             gridEl.style.gridTemplateRows = `repeat(${config.rows}, 24px)`;
 
             for(let i=0; i<config.rows * config.cols; i++) {
+                grid.push({ index: i, isMine: false, revealed: false, flagged: false, count: 0 });
                 let cell = document.createElement('div');
                 cell.className = 'cell closed';
-                cell.dataset.index = i;
+                cell.id = `c-${i}`;
                 
-                // 1. 鼠标按下效果
-                cell.addEventListener('mousedown', (e) => {
-                    if(!gameOver && e.button === 0) faceBtn.innerText = "😮";
-                });
-                
-                // 2. 鼠标抬起效果
-                document.addEventListener('mouseup', () => {
-                    if(!gameOver) faceBtn.innerText = "🙂";
-                });
-                
-                // 3. 左键点击
-                cell.onclick = () => handleClick(i);
-                
-                // 4. 右键点击
-                cell.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    handleRightClick(i);
-                };
-
-                // 5. 双击事件 (双键功能)
-                cell.ondblclick = () => handleChord(i);
+                // 绑定鼠标事件
+                cell.addEventListener('mousedown', (e) => handleMouseDown(e, i));
+                cell.addEventListener('mouseup', (e) => handleMouseUp(e, i));
+                cell.addEventListener('mouseenter', (e) => handleMouseEnter(e, i));
+                cell.addEventListener('mouseleave', (e) => handleMouseLeave(e, i));
 
                 gridEl.appendChild(cell);
-                grid.push({ index: i, isMine: false, revealed: false, flagged: false, count: 0 });
+            }
+        }
+
+        // --- 鼠标逻辑核心 ---
+
+        function handleMouseDown(e, idx) {
+            if(gameOver) return;
+            if(e.button === 0) isLeftDown = true;
+            if(e.button === 2) isRightDown = true;
+
+            faceBtn.innerText = "😮";
+            
+            // 左右键同按逻辑
+            if(isLeftDown && isRightDown) {
+                highlightNeighbors(idx);
+            } else if(isLeftDown) {
+                // 单左键按下效果
+                if(!grid[idx].revealed && !grid[idx].flagged) {
+                    document.getElementById(`c-${idx}`).classList.add('pressed');
+                }
+            } else if(isRightDown) {
+                // 单右键按下：如果是插旗操作，down的时候就插旗体验更好，还是up的时候？
+                // Windows经典是按下即标记
+                if(!isLeftDown) toggleFlag(idx); 
+            }
+        }
+
+        function handleMouseEnter(e, idx) {
+            currentHoverIdx = idx;
+            if(gameOver) return;
+            if(isLeftDown && isRightDown) {
+                highlightNeighbors(idx);
+            } else if(isLeftDown) {
+                if(!grid[idx].revealed && !grid[idx].flagged) {
+                    document.getElementById(`c-${idx}`).classList.add('pressed');
+                }
+            }
+        }
+
+        function handleMouseLeave(e, idx) {
+            // 离开格子时，清除该格子及其周围的高亮
+            if(gameOver) return;
+            const el = document.getElementById(`c-${idx}`);
+            if(el) el.classList.remove('pressed');
+            
+            // 清除周围高亮
+            getNeighbors(idx).forEach(n => {
+                const nEl = document.getElementById(`c-${n}`);
+                if(nEl && !grid[n].revealed) nEl.classList.remove('pressed');
+            });
+        }
+
+        function handleMouseUp(e, idx) {
+            if(gameOver) return;
+            
+            // 左右键同松开逻辑 (Chording)
+            // 注意：通常只要两个键都按下了，松开任意一个键都会触发Chording
+            if(isLeftDown && isRightDown) {
+                // 此时执行双键扫雷
+                chordOpen(idx);
+                // 清除高亮
+                unhighlightAll();
+            } else if (isLeftDown && e.button === 0) {
+                // 普通左键点击
+                if(!isRightDown) { // 确保不是双键操作残留
+                    handleClick(idx);
+                }
+            }
+
+            if(e.button === 0) isLeftDown = false;
+            if(e.button === 2) isRightDown = false;
+
+            if(!isLeftDown && !isRightDown) {
+                faceBtn.innerText = "🙂";
+            }
+        }
+        
+        // 全局mouseup防止鼠标移出格子后松开卡死状态
+        document.addEventListener('mouseup', () => {
+             // 稍微延迟一点重置，确保格子的mouseup先执行
+             setTimeout(() => {
+                 if(!isLeftDown && !isRightDown) faceBtn.innerText = "🙂";
+             }, 10);
+        });
+
+        // --- 游戏逻辑 ---
+
+        function highlightNeighbors(idx) {
+            const neighbors = getNeighbors(idx);
+            // 高亮周围未翻开且未插旗的格子
+            neighbors.forEach(n => {
+                if(!grid[n].revealed && !grid[n].flagged) {
+                    document.getElementById(`c-${n}`).classList.add('pressed');
+                }
+            });
+            // 同时也高亮自己（如果未翻开）
+            /* 经典扫雷中，如果点的是数字，自己不会凹陷；如果点的是未知区域，自己会凹陷。
+               这里为了简化，主要处理数字周围的高亮 */
+        }
+
+        function unhighlightAll() {
+            document.querySelectorAll('.cell.pressed').forEach(el => el.classList.remove('pressed'));
+        }
+
+        function toggleFlag(idx) {
+            if(grid[idx].revealed) return;
+            const cell = grid[idx];
+            const el = document.getElementById(`c-${idx}`);
+            
+            if(cell.flagged) {
+                cell.flagged = false;
+                flags--;
+                el.innerText = '';
+                el.classList.remove('flagged');
+            } else {
+                cell.flagged = true;
+                flags++;
+                el.innerText = '🚩';
+                el.classList.add('flagged');
+            }
+            updateMinesCounter();
+        }
+
+        function chordOpen(idx) {
+            const cell = grid[idx];
+            // 必须是已翻开的数字格
+            if(!cell.revealed || cell.count === 0) return;
+
+            const neighbors = getNeighbors(idx);
+            const flagCount = neighbors.filter(n => grid[n].flagged).length;
+
+            if(flagCount === cell.count) {
+                // 插旗数量正确（或认为正确），翻开周围
+                let hitMine = false;
+                neighbors.forEach(n => {
+                    if(!grid[n].revealed && !grid[n].flagged) {
+                        if(grid[n].isMine) {
+                            hitMine = true;
+                            triggerGameOver(false, n);
+                        } else {
+                            revealCell(n);
+                        }
+                    }
+                });
+                if(hitMine) return; 
+                checkWin();
+            }
+        }
+
+        function handleClick(idx) {
+            if(grid[idx].flagged || grid[idx].revealed) return;
+
+            if(firstClick) {
+                placeMines(idx);
+                firstClick = false;
+            }
+
+            const cell = grid[idx];
+            if(cell.isMine) {
+                triggerGameOver(false, idx);
+            } else {
+                revealCell(idx);
+                checkWin();
+            }
+        }
+
+        function revealCell(idx) {
+            if(grid[idx].revealed || grid[idx].flagged) return;
+            
+            grid[idx].revealed = true;
+            revealed++;
+            
+            const el = document.getElementById(`c-${idx}`);
+            el.className = 'cell revealed';
+            el.classList.remove('pressed'); // 移除可能的按下状态
+            
+            if(grid[idx].count > 0) {
+                el.classList.add(`c-${grid[idx].count}`);
+                el.innerText = grid[idx].count;
+            } else {
+                let neighbors = getNeighbors(idx);
+                neighbors.forEach(n => revealCell(n));
             }
         }
 
@@ -236,14 +406,12 @@
             const total = config.rows * config.cols;
             while(minesPlaced < config.mines) {
                 let idx = Math.floor(Math.random() * total);
-                // 排除当前点击位置，防止开局踩雷
                 if(idx !== excludeIndex && !grid[idx].isMine) {
                     grid[idx].isMine = true;
                     minesPlaced++;
                 }
             }
 
-            // 计算周围雷数
             for(let i=0; i<total; i++) {
                 if(!grid[i].isMine) {
                     let neighbors = getNeighbors(i);
@@ -251,7 +419,6 @@
                 }
             }
 
-            // 启动计时
             timerInterval = setInterval(() => {
                 time++;
                 if(time > 999) time = 999;
@@ -274,127 +441,35 @@
             return neighbors;
         }
 
-        // 左键点击逻辑
-        function handleClick(idx) {
-            if(gameOver || grid[idx].flagged || grid[idx].revealed) return;
-
-            if(firstClick) {
-                placeMines(idx);
-                firstClick = false;
-            }
-
-            const cell = grid[idx];
-            const el = gridEl.children[idx];
-
-            if(cell.isMine) {
-                triggerGameOver(false, idx);
-            } else {
-                revealCell(idx);
-                checkWin();
-            }
-        }
-
-        // 双击清理 (Chord) 逻辑
-        function handleChord(idx) {
-            if(gameOver) return;
-            const cell = grid[idx];
-
-            // 只有已翻开且有数字的格子才能双击
-            if(!cell.revealed || cell.count === 0) return;
-
-            const neighbors = getNeighbors(idx);
-            
-            // 计算周围插旗的数量
-            const surroundingFlags = neighbors.filter(n => grid[n].flagged).length;
-
-            // 如果插旗数量等于雷数，自动翻开其余格子
-            if(surroundingFlags === cell.count) {
-                let hitMine = false;
-                neighbors.forEach(n => {
-                    if(!grid[n].revealed && !grid[n].flagged) {
-                        if(grid[n].isMine) {
-                            hitMine = true; // 插错旗了，引爆！
-                            triggerGameOver(false, n);
-                        } else {
-                            revealCell(n);
-                        }
-                    }
-                });
-                if(!hitMine) checkWin();
-            }
-        }
-
-        function revealCell(idx) {
-            if(grid[idx].revealed || grid[idx].flagged) return;
-            
-            grid[idx].revealed = true;
-            revealed++;
-            
-            const el = gridEl.children[idx];
-            el.className = 'cell revealed';
-            
-            if(grid[idx].count > 0) {
-                el.classList.add(`c-${grid[idx].count}`);
-                el.innerText = grid[idx].count;
-            } else {
-                // 如果是空地，连锁反应
-                let neighbors = getNeighbors(idx);
-                neighbors.forEach(n => revealCell(n));
-            }
-        }
-
-        function handleRightClick(idx) {
-            if(gameOver || grid[idx].revealed) return;
-            
-            const cell = grid[idx];
-            const el = gridEl.children[idx];
-
-            if(cell.flagged) {
-                cell.flagged = false;
-                flags--;
-                el.innerText = '';
-                el.classList.remove('flagged');
-            } else {
-                cell.flagged = true;
-                flags++;
-                el.innerText = '🚩';
-                el.classList.add('flagged');
-            }
-            updateMinesCounter();
-        }
-
         function triggerGameOver(isWin, hitMineIdx) {
             gameOver = true;
             clearInterval(timerInterval);
+            unhighlightAll();
 
             if(isWin) {
                 faceBtn.innerText = "😎";
                 minesLeftEl.innerText = "000";
-                // 胜利时把剩余雷全标旗
+                // 胜利逻辑：将所有雷标记为旗子 (修复你的bug体验)
                 grid.forEach(c => {
                     if(c.isMine && !c.flagged) {
-                        const el = gridEl.children[c.index];
+                        const el = document.getElementById(`c-${c.index}`);
                         el.innerText = '🚩';
                         el.classList.add('flagged');
+                        // 也不用更新flags计数器了，直接显示000最好看
                     }
                 });
             } else {
                 faceBtn.innerText = "😵";
-                // 失败时显示所有雷
                 grid.forEach(c => {
-                    const el = gridEl.children[c.index];
+                    const el = document.getElementById(`c-${c.index}`);
                     if(c.isMine) {
                         if(!c.flagged) {
                             el.classList.remove('closed');
                             el.classList.add('revealed', 'mine');
                             el.innerText = '💣';
-                            // 红色高亮踩到的雷
-                            if(c.index === hitMineIdx) {
-                                el.style.backgroundColor = 'red';
-                            }
+                            if(c.index === hitMineIdx) el.style.backgroundColor = 'red';
                         }
                     } else if(c.flagged) {
-                        // 标错的雷
                         el.classList.remove('closed');
                         el.classList.add('mistake');
                         el.innerText = '❌';
@@ -406,6 +481,7 @@
         function checkWin() {
             if(gameOver) return;
             const total = config.rows * config.cols;
+            // 只要非雷区全部点开，即为胜利（无论雷是否全部插旗）
             if(revealed === total - config.mines) {
                 triggerGameOver(true);
             }
@@ -417,7 +493,6 @@
             minesLeftEl.innerText = left.toString().padStart(3, '0');
         }
 
-        // 初始化
         setDifficulty('easy');
 
     </script>
