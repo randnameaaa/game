@@ -2,20 +2,15 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>2048</title>
+    <title>2048 - 终极修复版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body {
             font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
             background: #faf8ef;
             color: #776e65;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            touch-action: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; margin: 0; touch-action: none;
         }
 
         h1 { margin: 0; font-size: 60px; }
@@ -29,53 +24,56 @@
         }
 
         #game-container {
-            width: 320px;
-            height: 320px;
-            background: #bbada0;
-            border-radius: 6px;
-            position: relative;
-            padding: 10px;
-            box-sizing: border-box;
+            width: 320px; height: 320px; background: #bbada0; border-radius: 6px;
+            position: relative; padding: 10px; box-sizing: border-box;
         }
 
         .grid-cell {
-            width: 65px;
-            height: 65px;
-            background: rgba(238, 228, 218, 0.35);
-            border-radius: 3px;
-            position: absolute;
+            width: 65px; height: 65px; background: rgba(238, 228, 218, 0.35);
+            border-radius: 3px; position: absolute;
         }
 
+        /* --- 核心修复：父子分离 --- */
+
+        /* 1. 父元素：只负责位置和移动动画 */
         .tile {
-            width: 65px;
-            height: 65px;
-            border-radius: 3px;
             position: absolute;
-            font-weight: bold;
-            font-size: 30px;
-            line-height: 65px;
-            text-align: center;
+            width: 65px; height: 65px;
             z-index: 10;
-            transition: transform 0.15s ease-in-out; /* 移动动画时间 */
+            transition: transform 0.15s ease-in-out; /* 只有位置变化会触发这个过渡 */
         }
 
-        .tile-new { animation: pop 0.2s ease-in; }
-        @keyframes pop { 0% { transform: scale(0); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
-        
-        .tile-merged { animation: merge 0.2s ease-in; z-index: 20; }
-        @keyframes merge { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        /* 2. 子元素：负责颜色、数字和缩放动画 */
+        .tile-inner {
+            width: 100%; height: 100%;
+            border-radius: 3px;
+            line-height: 65px; text-align: center;
+            font-weight: bold; font-size: 30px;
+            background: #eee4da; color: #776e65; /* 默认颜色 */
+        }
 
-        .tile-2 { background: #eee4da; color: #776e65; }
-        .tile-4 { background: #ede0c8; color: #776e65; }
-        .tile-8 { background: #f2b179; color: #f9f6f2; }
-        .tile-16 { background: #f59563; color: #f9f6f2; }
-        .tile-32 { background: #f67c5f; color: #f9f6f2; }
-        .tile-64 { background: #f65e3b; color: #f9f6f2; }
-        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 24px; }
-        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 24px; }
-        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 24px; }
-        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 18px; }
-        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 18px; }
+        /* 动画应用在子元素上，不会影响父元素的位置 */
+        .tile-new .tile-inner { animation: pop 0.2s ease-in; }
+        .tile-merged .tile-inner { animation: pop 0.2s ease-in; }
+
+        @keyframes pop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* 颜色配置 (应用在 tile-inner 上) */
+        .tile-2 .tile-inner { background: #eee4da; color: #776e65; }
+        .tile-4 .tile-inner { background: #ede0c8; color: #776e65; }
+        .tile-8 .tile-inner { background: #f2b179; color: #f9f6f2; }
+        .tile-16 .tile-inner { background: #f59563; color: #f9f6f2; }
+        .tile-32 .tile-inner { background: #f67c5f; color: #f9f6f2; }
+        .tile-64 .tile-inner { background: #f65e3b; color: #f9f6f2; }
+        .tile-128 .tile-inner { background: #edcf72; color: #f9f6f2; font-size: 24px; }
+        .tile-256 .tile-inner { background: #edcc61; color: #f9f6f2; font-size: 24px; }
+        .tile-512 .tile-inner { background: #edc850; color: #f9f6f2; font-size: 24px; }
+        .tile-1024 .tile-inner { background: #edc53f; color: #f9f6f2; font-size: 18px; }
+        .tile-2048 .tile-inner { background: #edc22e; color: #f9f6f2; font-size: 18px; }
 
         a.back { margin-top: 20px; color: #776e65; text-decoration: none; }
     </style>
@@ -92,7 +90,6 @@
     </div>
 
     <div id="game-container"></div>
-
     <a href="/" class="back">← 返回菜单</a>
 
     <script>
@@ -141,14 +138,23 @@
             createTile(pos.x, pos.y, Math.random() > 0.9 ? 4 : 2);
         }
 
+        // 修改：创建两层结构的 DOM
         function createTile(x, y, value) {
+            // 1. 外层：定位
             let tile = document.createElement('div');
             tile.className = `tile tile-${value} tile-new`;
-            tile.innerText = value;
             tile.style.transform = `translate(${getPos(x)}px, ${getPos(y)}px)`;
             
-            setTimeout(() => tile.classList.remove('tile-new'), 200);
+            // 2. 内层：样式和内容
+            let inner = document.createElement('div');
+            inner.className = 'tile-inner';
+            inner.innerText = value;
+            
+            tile.appendChild(inner);
             container.appendChild(tile);
+            
+            // 动画结束后移除初始化类
+            setTimeout(() => tile.classList.remove('tile-new'), 200);
             
             tiles.push({ id: idCounter++, x, y, value, element: tile });
         }
@@ -164,9 +170,9 @@
             if(direction === 'Right') vector.x = 1;
 
             let moved = false;
-            let mergedIds = new Set(); 
+            let mergedIds = new Set();
             
-            // 按照移动方向排序，确保前面的方块先移动
+            // 排序：保证移动顺序正确
             let sortedTiles = [...tiles].sort((a, b) => {
                 if(vector.x === 1) return b.x - a.x; 
                 if(vector.x === -1) return a.x - b.x; 
@@ -175,34 +181,35 @@
                 return 0;
             });
 
-            // 1. 计算所有移动，但只更新坐标，不更新数值
+            // 1. 计算目标位置
             sortedTiles.forEach(tile => {
                 let cell = {x: tile.x, y: tile.y};
                 let next;
+                
                 while(true) {
                     next = {x: cell.x + vector.x, y: cell.y + vector.y};
                     if(next.x < 0 || next.x >= size || next.y < 0 || next.y >= size) break;
                     
-                    let obstacle = tiles.find(t => t.x === next.x && t.y === next.y);
+                    let obstacle = tiles.find(t => t.x === next.x && t.y === next.y && !t.toBeDeleted);
                     
                     if(obstacle) {
-                        // 合并逻辑
                         if(obstacle.value === tile.value && !mergedIds.has(obstacle.id) && !mergedIds.has(tile.id)) {
-                            // 标记移动到障碍物位置
+                            // 合并
                             tile.x = next.x;
                             tile.y = next.y;
-                            tile.toBeDeleted = true; // 标记删除
+                            tile.toBeDeleted = true; 
                             
-                            obstacle.value *= 2; // 更新障碍物数值
-                            obstacle.justMerged = true; // 标记发生合并
+                            obstacle.value *= 2; 
+                            obstacle.justMerged = true; 
                             
                             mergedIds.add(obstacle.id); 
-                            mergedIds.add(tile.id); // 防止此块连跳
+                            mergedIds.add(tile.id);
                             score += obstacle.value;
                             moved = true;
                         }
                         break; 
                     }
+                    
                     cell = next;
                     tile.x = cell.x;
                     tile.y = cell.y;
@@ -211,16 +218,16 @@
             });
 
             if(moved) {
-                // 2. 仅执行位移动画 (DOM 还是旧数值)
+                // 2. 执行位移 (只改变父元素位置，内层不动)
                 tiles.forEach(t => {
                     t.element.style.transform = `translate(${getPos(t.x)}px, ${getPos(t.y)}px)`;
                 });
                 scoreEl.innerText = score;
 
-                // 3. 等待动画结束
+                // 3. 等待位移动画
                 await new Promise(r => setTimeout(r, 150));
 
-                // 4. 更新 DOM 内容 (删除旧块，更新合并块的数值和颜色)
+                // 4. 更新 DOM
                 tiles = tiles.filter(t => {
                     if(t.toBeDeleted) {
                         t.element.remove();
@@ -231,8 +238,13 @@
 
                 tiles.forEach(t => {
                     if(t.justMerged) {
-                        t.element.innerText = t.value;
+                        // 更新数值
+                        let inner = t.element.querySelector('.tile-inner');
+                        inner.innerText = t.value;
+                        
+                        // 更新外层类名以匹配颜色，并添加合并动画类
                         t.element.className = `tile tile-${t.value} tile-merged`;
+                        
                         t.justMerged = false;
                         setTimeout(() => t.element.classList.remove('tile-merged'), 200);
                     }
@@ -263,8 +275,7 @@
             let dy = e.changedTouches[0].clientY - touchStartY;
             if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) move(dx > 0 ? 'Right' : 'Left');
             else if(Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 30) move(dy > 0 ? 'Down' : 'Up');
-            touchStartX = null;
-            touchStartY = null;
+            touchStartX = null; touchStartY = null;
             e.preventDefault();
         }, {passive: false});
 

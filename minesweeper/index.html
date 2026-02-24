@@ -2,70 +2,34 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>经典扫雷 - 完美操作版</title>
+    <title>经典扫雷</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #c0c0c0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            user-select: none;
-            -webkit-user-select: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; margin: 0;
+            user-select: none; -webkit-user-select: none;
         }
-
-        body { -webkit-context-menu: none; }
+        body { -webkit-context-menu: none; } /* 屏蔽系统右键菜单 */
 
         .inset { border: 2px solid; border-color: #808080 #fff #fff #808080; }
         .outset { border: 2px solid; border-color: #fff #808080 #808080 #fff; }
-
         .game-window { background: #c0c0c0; padding: 6px; display: inline-block; }
-
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 6px; margin-bottom: 6px; background: #c0c0c0;
-        }
-
-        .counter {
-            background: #000; color: #f00; font-family: 'Courier New', Courier, monospace;
-            font-size: 26px; line-height: 26px; width: 50px; text-align: center; font-weight: bold;
-        }
-
-        #face-btn {
-            width: 26px; height: 26px; font-size: 18px; line-height: 22px; text-align: center;
-            cursor: pointer; background: #c0c0c0; outline: none; padding: 0;
-            border: 2px solid; border-color: #fff #808080 #808080 #fff;
-        }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; margin-bottom: 6px; background: #c0c0c0; }
+        
+        .counter { background: #000; color: #f00; font-family: 'Courier New', Courier, monospace; font-size: 26px; line-height: 26px; width: 50px; text-align: center; font-weight: bold; }
+        #face-btn { width: 26px; height: 26px; font-size: 18px; line-height: 22px; text-align: center; cursor: pointer; background: #c0c0c0; padding: 0; border: 2px solid; border-color: #fff #808080 #808080 #fff; outline: none;}
         #face-btn:active { border-color: #808080 #fff #fff #808080; transform: translateY(1px); }
 
         #grid { display: grid; background: #808080; gap: 0; }
-
-        .cell {
-            width: 24px; height: 24px; line-height: 22px; text-align: center;
-            font-weight: bold; font-size: 16px; font-family: 'Verdana', sans-serif;
-            cursor: default; box-sizing: border-box;
-        }
-
-        .cell.closed {
-            background: #c0c0c0;
-            border-top: 2px solid #fff; border-left: 2px solid #fff;
-            border-right: 2px solid #808080; border-bottom: 2px solid #808080;
-        }
+        .cell { width: 24px; height: 24px; line-height: 22px; text-align: center; font-weight: bold; font-size: 16px; font-family: 'Verdana', sans-serif; cursor: default; box-sizing: border-box; }
         
-        /* 左右键同按时的高亮效果 */
-        .cell.pressed {
-            border: none; border-left: 1px solid #808080; border-top: 1px solid #808080;
-            background: #c0c0c0;
-        }
-
-        .cell.revealed {
-            background: #c0c0c0; border: 1px dotted #808080; border-top: none; border-left: none;
-        }
-
+        .cell.closed { background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #808080; border-bottom: 2px solid #808080; }
+        .cell.pressed { border: none; border-left: 1px solid #808080; border-top: 1px solid #808080; background: #c0c0c0; }
+        .cell.revealed { background: #c0c0c0; border: 1px dotted #808080; border-top: none; border-left: none; }
+        
         .cell.mine { background: #ff0000; border: 1px solid #808080; }
         .cell.flagged { color: #ff0000; }
         .cell.mistake { background: #ffcdcd; color: #ff0000; font-weight: normal; }
@@ -96,7 +60,6 @@
         </div>
         <div class="inset"><div id="grid"></div></div>
     </div>
-
     <a href="/" class="back">← 返回菜单</a>
 
     <script>
@@ -115,8 +78,10 @@
         let time = 0;
         let firstClick = true;
         
+        // 核心状态管理
         let isLeftDown = false;
         let isRightDown = false;
+        let isDualMode = false;
 
         const faceBtn = document.getElementById('face-btn');
         const gridEl = document.getElementById('grid');
@@ -139,6 +104,7 @@
             grid = [];
             isLeftDown = false;
             isRightDown = false;
+            isDualMode = false;
             
             clearInterval(timerInterval);
             timerEl.innerText = "000";
@@ -166,62 +132,87 @@
 
         function handleMouseDown(e, idx) {
             if(gameOver) return;
+            
             if(e.button === 0) isLeftDown = true;
             if(e.button === 2) isRightDown = true;
-
-            faceBtn.innerText = "😮";
             
+            faceBtn.innerText = "😮";
+
+            // 1. 无论先按左还是先按右，只要两者都按下了，就进入双键模式
             if(isLeftDown && isRightDown) {
-                // 双键按下：高亮周围，且**不执行**插旗
+                isDualMode = true;
                 highlightNeighbors(idx);
             } else if(isLeftDown) {
-                // 仅左键：高亮自己
+                // 单左键：高亮自己
                 if(!grid[idx].revealed && !grid[idx].flagged) {
                     document.getElementById(`c-${idx}`).classList.add('pressed');
                 }
-            } else if(isRightDown) {
-                // 仅右键：**重要修复** 只有当左键没按时，才插旗
-                if(!isLeftDown) toggleFlag(idx); 
-            }
+            } 
+            // 注意：这里移除了 toggleFlag。
+            // 仅仅按下右键时，什么都不做（除了更新状态），等待松开或等待左键。
         }
 
         function handleMouseEnter(e, idx) {
             if(gameOver) return;
-            if(isLeftDown && isRightDown) highlightNeighbors(idx);
-            else if(isLeftDown) {
+            if(isDualMode) {
+                highlightNeighbors(idx);
+            } else if(isLeftDown) {
                 if(!grid[idx].revealed && !grid[idx].flagged) document.getElementById(`c-${idx}`).classList.add('pressed');
             }
         }
 
         function handleMouseLeave(e, idx) {
             if(gameOver) return;
-            document.getElementById(`c-${idx}`).classList.remove('pressed');
+            const el = document.getElementById(`c-${idx}`);
+            if(el) el.classList.remove('pressed');
             getNeighbors(idx).forEach(n => {
                 const nEl = document.getElementById(`c-${n}`);
-                if(nEl && !grid[n].revealed) nEl.classList.remove('pressed');
+                if(nEl) nEl.classList.remove('pressed');
             });
         }
 
         function handleMouseUp(e, idx) {
             if(gameOver) return;
             
-            // 只要左右键同时处于按下状态（即使现在松开了一个），都视为双键操作结束
-            if(isLeftDown && isRightDown) {
+            // 2. 逻辑分流
+            if(isDualMode) {
+                // 处于双键模式下松开任意键：触发双键开雷
                 chordOpen(idx);
                 unhighlightAll();
-            } else if (isLeftDown && e.button === 0) {
-                // 只有纯左键释放，且没有右键干扰时，才算普通点击
-                if(!isRightDown) handleClick(idx);
+            } else {
+                // 未进入过双键模式：执行单键逻辑
+                
+                // 如果松开的是左键，且没有进入双键模式 -> 挖开
+                if (e.button === 0 && isLeftDown) {
+                    handleClick(idx);
+                }
+                // 如果松开的是右键，且没有进入双键模式 -> 插旗
+                // 关键修复点：插旗逻辑移到了这里
+                if (e.button === 2 && isRightDown) {
+                    toggleFlag(idx);
+                }
             }
 
+            // 更新按键状态
             if(e.button === 0) isLeftDown = false;
             if(e.button === 2) isRightDown = false;
 
-            if(!isLeftDown && !isRightDown) faceBtn.innerText = "🙂";
+            // 只有当两个键都松开了，才重置双键模式锁
+            // 这样防止：按住双键 -> 松开一个（触发双击）-> 再松开另一个（误触单机）
+            if(!isLeftDown && !isRightDown) {
+                isDualMode = false;
+                faceBtn.innerText = "🙂";
+            }
         }
-        
+
+        // 兜底
         document.addEventListener('mouseup', () => {
-             setTimeout(() => { if(!isLeftDown && !isRightDown) faceBtn.innerText = "🙂"; }, 10);
+             setTimeout(() => { 
+                 if(!isLeftDown && !isRightDown) {
+                     isDualMode = false;
+                     faceBtn.innerText = "🙂"; 
+                 }
+             }, 10);
         });
 
         function highlightNeighbors(idx) {
@@ -258,6 +249,7 @@
 
         function chordOpen(idx) {
             const cell = grid[idx];
+            // 只有已翻开的数字格才响应双击
             if(!cell.revealed || cell.count === 0) return;
 
             const neighbors = getNeighbors(idx);
