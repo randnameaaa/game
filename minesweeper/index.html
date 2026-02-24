@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>经典扫雷</title>
+    <title>经典扫雷 - 极速双击版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -14,7 +14,8 @@
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            user-select: none;
+            user-select: none; /* 禁止选中文本 */
+            -webkit-user-select: none;
         }
 
         /* 3D 边框效果工具类 */
@@ -58,14 +59,21 @@
             background: #c0c0c0;
             outline: none;
             padding: 0;
+            border: 2px solid; 
+            border-color: #fff #808080 #808080 #fff;
         }
-        #face-btn:active { border-width: 2px; border-style: solid; border-color: #808080 #fff #fff #808080; transform: translateY(1px); }
+        #face-btn:active { 
+            border-width: 2px; 
+            border-style: solid; 
+            border-color: #808080 #fff #fff #808080; 
+            transform: translateY(1px); 
+        }
 
         /* 游戏区域 */
         #grid {
             display: grid;
             background: #808080; /* 格子之间的线 */
-            gap: 0; /* 紧贴 */
+            gap: 0; 
         }
 
         .cell {
@@ -92,13 +100,14 @@
         /* 点开后的状态 (平整/凹陷) */
         .cell.revealed {
             background: #c0c0c0;
-            border: 1px solid #7b7b7b; /* 淡淡的边界 */
-            border: none;
-            outline: 1px dotted #808080;
+            border: 1px dotted #808080; /* 淡淡的虚线边界 */
+            border-top: none; 
+            border-left: none;
         }
 
-        .cell.mine { background: #ff0000; }
+        .cell.mine { background: #ff0000; border: 1px solid #808080; }
         .cell.flagged { color: #ff0000; }
+        .cell.mistake { background: #ffcdcd; color: #ff0000; font-weight: normal; }
 
         /* 数字颜色 */
         .c-1 { color: #0000ff; }
@@ -112,24 +121,29 @@
 
         /* 难度选择菜单 */
         .menu { margin-bottom: 15px; }
-        .menu button { margin: 0 5px; padding: 5px 10px; cursor: pointer;}
-        .menu button.active { font-weight: bold; background: #ddd; }
+        .menu button { margin: 0 5px; padding: 5px 10px; cursor: pointer; border: 1px solid #888; background: #eee;}
+        .menu button.active { font-weight: bold; background: #bbb; border: 1px inset #888; }
 
         a.back { display: block; margin-top: 15px; color: #555; text-decoration: none; font-size: 12px; }
+        
+        /* 提示文字 */
+        .hint { font-size: 12px; color: #666; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
     <div class="menu">
-        <button onclick="setDifficulty('easy')" id="btn-easy">初级 (9x9)</button>
-        <button onclick="setDifficulty('medium')" id="btn-medium">中级 (16x16)</button>
-        <button onclick="setDifficulty('hard')" id="btn-hard">高级 (30x16)</button>
+        <button onclick="setDifficulty('easy')" id="btn-easy">初级</button>
+        <button onclick="setDifficulty('medium')" id="btn-medium">中级</button>
+        <button onclick="setDifficulty('hard')" id="btn-hard">高级</button>
     </div>
+
+    <div class="hint">💡 提示：双击数字可快速翻开周围格子</div>
 
     <div class="game-window outset">
         <div class="header inset">
             <div class="counter inset" id="mines-left">000</div>
-            <button class="outset" id="face-btn" onclick="initGame()">🙂</button>
+            <button id="face-btn" onclick="initGame()">🙂</button>
             <div class="counter inset" id="timer">000</div>
         </div>
 
@@ -141,7 +155,6 @@
     <a href="/" class="back">← 返回菜单</a>
 
     <script>
-        // 经典难度配置
         const difficulties = {
             easy: { rows: 9, cols: 9, mines: 10 },
             medium: { rows: 16, cols: 16, mines: 40 },
@@ -155,7 +168,7 @@
         let revealed = 0;
         let timerInterval;
         let time = 0;
-        let firstClick = true; // 防止第一次就踩雷
+        let firstClick = true;
 
         const faceBtn = document.getElementById('face-btn');
         const gridEl = document.getElementById('grid');
@@ -170,7 +183,6 @@
         }
 
         function initGame() {
-            // 重置数据
             gameOver = false;
             flags = 0;
             revealed = 0;
@@ -183,7 +195,6 @@
             updateMinesCounter();
             faceBtn.innerText = "🙂";
             
-            // 生成网格 UI
             gridEl.innerHTML = '';
             gridEl.style.gridTemplateColumns = `repeat(${config.cols}, 24px)`;
             gridEl.style.gridTemplateRows = `repeat(${config.rows}, 24px)`;
@@ -193,20 +204,27 @@
                 cell.className = 'cell closed';
                 cell.dataset.index = i;
                 
-                // 鼠标按下效果 (模拟笑脸惊讶)
-                cell.onmousedown = (e) => {
+                // 1. 鼠标按下效果
+                cell.addEventListener('mousedown', (e) => {
                     if(!gameOver && e.button === 0) faceBtn.innerText = "😮";
-                };
-                cell.onmouseup = () => {
-                    if(!gameOver) faceBtn.innerText = "🙂";
-                };
+                });
                 
-                // 点击事件
+                // 2. 鼠标抬起效果
+                document.addEventListener('mouseup', () => {
+                    if(!gameOver) faceBtn.innerText = "🙂";
+                });
+                
+                // 3. 左键点击
                 cell.onclick = () => handleClick(i);
+                
+                // 4. 右键点击
                 cell.oncontextmenu = (e) => {
                     e.preventDefault();
                     handleRightClick(i);
                 };
+
+                // 5. 双击事件 (双键功能)
+                cell.ondblclick = () => handleChord(i);
 
                 gridEl.appendChild(cell);
                 grid.push({ index: i, isMine: false, revealed: false, flagged: false, count: 0 });
@@ -218,7 +236,7 @@
             const total = config.rows * config.cols;
             while(minesPlaced < config.mines) {
                 let idx = Math.floor(Math.random() * total);
-                // 第一次点击的地方及其周围不能有雷 (可选优化，这里简单处理为只要不是当前格即可)
+                // 排除当前点击位置，防止开局踩雷
                 if(idx !== excludeIndex && !grid[idx].isMine) {
                     grid[idx].isMine = true;
                     minesPlaced++;
@@ -233,7 +251,7 @@
                 }
             }
 
-            // 启动计时器
+            // 启动计时
             timerInterval = setInterval(() => {
                 time++;
                 if(time > 999) time = 999;
@@ -256,10 +274,10 @@
             return neighbors;
         }
 
+        // 左键点击逻辑
         function handleClick(idx) {
             if(gameOver || grid[idx].flagged || grid[idx].revealed) return;
 
-            // 如果是第一次点击，才开始布雷
             if(firstClick) {
                 placeMines(idx);
                 firstClick = false;
@@ -269,15 +287,40 @@
             const el = gridEl.children[idx];
 
             if(cell.isMine) {
-                gameOver = true;
-                faceBtn.innerText = "😵"; // 挂了
-                el.classList.add('mine');
-                el.innerText = '💣';
-                clearInterval(timerInterval);
-                revealAllMines();
+                triggerGameOver(false, idx);
             } else {
                 revealCell(idx);
                 checkWin();
+            }
+        }
+
+        // 双击清理 (Chord) 逻辑
+        function handleChord(idx) {
+            if(gameOver) return;
+            const cell = grid[idx];
+
+            // 只有已翻开且有数字的格子才能双击
+            if(!cell.revealed || cell.count === 0) return;
+
+            const neighbors = getNeighbors(idx);
+            
+            // 计算周围插旗的数量
+            const surroundingFlags = neighbors.filter(n => grid[n].flagged).length;
+
+            // 如果插旗数量等于雷数，自动翻开其余格子
+            if(surroundingFlags === cell.count) {
+                let hitMine = false;
+                neighbors.forEach(n => {
+                    if(!grid[n].revealed && !grid[n].flagged) {
+                        if(grid[n].isMine) {
+                            hitMine = true; // 插错旗了，引爆！
+                            triggerGameOver(false, n);
+                        } else {
+                            revealCell(n);
+                        }
+                    }
+                });
+                if(!hitMine) checkWin();
             }
         }
 
@@ -294,7 +337,7 @@
                 el.classList.add(`c-${grid[idx].count}`);
                 el.innerText = grid[idx].count;
             } else {
-                // 空白扩散
+                // 如果是空地，连锁反应
                 let neighbors = getNeighbors(idx);
                 neighbors.forEach(n => revealCell(n));
             }
@@ -320,42 +363,61 @@
             updateMinesCounter();
         }
 
-        function revealAllMines() {
-            grid.forEach(c => {
-                if(c.isMine) {
-                    const el = gridEl.children[c.index];
-                    if(!c.flagged) {
-                        el.classList.remove('closed');
-                        el.classList.add('revealed', 'mine');
-                        el.innerText = '💣';
+        function triggerGameOver(isWin, hitMineIdx) {
+            gameOver = true;
+            clearInterval(timerInterval);
+
+            if(isWin) {
+                faceBtn.innerText = "😎";
+                minesLeftEl.innerText = "000";
+                // 胜利时把剩余雷全标旗
+                grid.forEach(c => {
+                    if(c.isMine && !c.flagged) {
+                        const el = gridEl.children[c.index];
+                        el.innerText = '🚩';
+                        el.classList.add('flagged');
                     }
-                } else if(c.flagged) {
-                    // 标错雷
+                });
+            } else {
+                faceBtn.innerText = "😵";
+                // 失败时显示所有雷
+                grid.forEach(c => {
                     const el = gridEl.children[c.index];
-                    el.classList.remove('closed');
-                    el.style.background = '#ffcdcd';
-                    el.innerText = '❌';
-                }
-            });
+                    if(c.isMine) {
+                        if(!c.flagged) {
+                            el.classList.remove('closed');
+                            el.classList.add('revealed', 'mine');
+                            el.innerText = '💣';
+                            // 红色高亮踩到的雷
+                            if(c.index === hitMineIdx) {
+                                el.style.backgroundColor = 'red';
+                            }
+                        }
+                    } else if(c.flagged) {
+                        // 标错的雷
+                        el.classList.remove('closed');
+                        el.classList.add('mistake');
+                        el.innerText = '❌';
+                    }
+                });
+            }
         }
 
         function checkWin() {
+            if(gameOver) return;
             const total = config.rows * config.cols;
             if(revealed === total - config.mines) {
-                gameOver = true;
-                faceBtn.innerText = "😎"; // 赢了
-                clearInterval(timerInterval);
-                minesLeftEl.innerText = "000";
+                triggerGameOver(true);
             }
         }
 
         function updateMinesCounter() {
             let left = config.mines - flags;
             if(left < -99) left = -99;
-            minesLeftEl.innerText = left.toString().padStart(3, '0'); // 保持3位数字
+            minesLeftEl.innerText = left.toString().padStart(3, '0');
         }
 
-        // 初始化默认难度
+        // 初始化
         setDifficulty('easy');
 
     </script>
